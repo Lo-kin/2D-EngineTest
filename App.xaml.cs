@@ -16,4 +16,14 @@ namespace _WPF_RPG
     {
 
     }
+
+    public class ExcuteCompute
+    {
+        public object Normal()
+        {
+
+            return new object();
+        }
+
+    }
 }

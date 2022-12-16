@@ -15,6 +15,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using System.Xml.Linq;
 
 namespace _WPF_RPG
 {
@@ -29,19 +30,20 @@ namespace _WPF_RPG
             GameProperties GP = new GameProperties();
             this.Width = GP.ScreenWidth;
             this.Height = GP.ScreenHeight;
-           
             this.PreviewKeyDown += MainWindow_PreviewKeyDown;
             this.PreviewKeyUp += MainWindow_PreviewKeyUp;
-            
+
             GUIStart();
         }
 
         bool[] KeyPressStat = new bool[4];
         DateTime[] KeyPressTime = new DateTime[4];
+        bool[] KeyExcuteStat = new bool[] { true , true, true, true};
+        double[] KeyPreesSpan = new double[4];
         
         private void MainWindow_PreviewKeyUp(object sender, KeyEventArgs e)
         {
-    
+            DateTime EndTime = DateTime.Now;
             if (e.Key == Key.A)
             {
                 KeyPressStat[0] = false;
@@ -86,14 +88,20 @@ namespace _WPF_RPG
             }
 
         }
-        
-        object GPObejct = new object();
+
+        private object[,] ExcuteMenuPos()
+        {
+            return new object[,] { };
+        }
 
         private void GUIStart()
         {
             Canvas MainMenu = new Canvas();
+            this.RegisterName("MenuCanvas", MainMenu);
             this.Content = MainMenu;
-
+            string[,] MenuControlsList = new string[,] {
+                {"Start" , "Setting" , "Exit" }
+            };
             Button RegularStart = new Button();
             RegularStart.Width = 80;
             RegularStart.Height = 60;
@@ -125,6 +133,7 @@ namespace _WPF_RPG
             //定义画布并添加到窗口
             Canvas MainCanvas = new Canvas();
             this.Content = MainCanvas;
+            this.RegisterName("PaintCanvas" , MainCanvas);
             MainCanvas.Background = new SolidColorBrush(Color.FromRgb(100, 150, 100));
             MainCanvas.Margin = new Thickness(0, 0, 0, 0);
 
@@ -159,7 +168,7 @@ namespace _WPF_RPG
                     MainCanvas.RegisterName(RectName, NowPaintBlcok);
                 }
             }
-            //*用于直观的测试边界
+            /*用于直观的测试边界
             LineGeometry tx = new LineGeometry();
             LineGeometry ty = new LineGeometry();
             tx.StartPoint = new Point(0 , 600);
@@ -179,22 +188,15 @@ namespace _WPF_RPG
 
             MainCanvas.Children.Add(myPath1);
             MainCanvas.Children.Add(myPath2);
-            //*/
+            */
 
-            //将地图信息传递到object
-            GPObejct = MainCanvas as object;
             Console.WriteLine("Done");
-            Button a = new Button();
-            a.Width = 80;
-            a.Height = 60;
-            a.SetValue(Canvas.LeftProperty, (double)200);
-            a.SetValue(Canvas.TopProperty, (double)150);
-            a.Click += new RoutedEventHandler(test);
-            MainCanvas.Children.Add(a);
+
+            test();
 
         }
 
-        private void test(object sender, EventArgs e)
+        private void test()
         {
             //直接在主线程执行循环会导致ui不更新，使用dispatcher更新
             Thread PaintThread = new Thread(Painter);
@@ -218,42 +220,63 @@ namespace _WPF_RPG
                 int BlockWidth = GameProperties.BlockWidth;
                 int BlockHeight = GameProperties.BlockHeight;
 
-                Canvas MainCanvas = GPObejct as Canvas;
+                Canvas MainCanvas = this.FindName("PaintCanvas") as Canvas;
+                double spd = 0.008;
+                double CamMoveX = 0;
+                double CamMoveY = 0;
 
-                int spd = 2;
-                double CamMoveX = 20;
-                double CamMoveY = 20;
-                
-                for (; ; )
+
+
+                for (;;)
                 {
 
                     DateTime NowDateTime = DateTime.Now;
                     if (KeyPressStat[0] == true)
                     {
-                        TimeSpan MoveTime = KeyPressTime[0] - NowDateTime;
-                        double MTtoInt = MoveTime.Seconds;
-                        CamMoveX -= MTtoInt * spd;
+                        TimeSpan MoveTimeLeft = NowDateTime - KeyPressTime[0];
+                        double MTtoIntL = MoveTimeLeft.Milliseconds;
+                        CamMoveX -= MTtoIntL * spd;
+                        
                     }
                     if (KeyPressStat[1] == true)
                     {
-                        TimeSpan MoveTime = KeyPressTime[0] - NowDateTime;
-                        double MTtoInt = MoveTime.Seconds;
-                        CamMoveY -= MTtoInt * spd;
+                        TimeSpan MoveTimeFoward = NowDateTime - KeyPressTime[1];
+                        double MTtoIntF = MoveTimeFoward.Milliseconds;
+                        CamMoveY -= MTtoIntF * spd;
+                        
                     }
                     if (KeyPressStat[2] == true)
                     {
-                        TimeSpan MoveTime = KeyPressTime[0] - NowDateTime;
-                        double MTtoInt = MoveTime.Seconds;
-                        CamMoveX += MTtoInt * spd;
+                        TimeSpan MoveTimeRight = NowDateTime - KeyPressTime[2];
+                        double MTtoIntR = MoveTimeRight.Milliseconds;
+                        CamMoveX += MTtoIntR * spd;
+                        
                     }
                     if (KeyPressStat[3] == true)
                     {
-                        TimeSpan MoveTime = KeyPressTime[0] - NowDateTime;
-                        double MTtoInt = MoveTime.Seconds;
-                        CamMoveY += MTtoInt * spd;
+                        TimeSpan MoveTimeBack = NowDateTime - KeyPressTime[3];
+                        double MTtoIntB = MoveTimeBack.Milliseconds;
+                        CamMoveY += MTtoIntB * spd;
                     }
-
+                    for (int BlY = PBSY; BlY <= PBEY; BlY++)
+                    {
+                        for (int BlX = PBSX; BlX <= PBEX; BlX++)
+                        {
+                            string NX;
+                            string NY;
+                            if (BlX <= 0) { NX = "_" + -BlX; }
+                            else { NX = Convert.ToString(BlX); }
+                            if (BlY <= 0) { NY = "_" + -BlY; }
+                            else { NY = Convert.ToString(BlY); }
+                            string RectName = "x" + NX + "y" + NY;
+                            Rectangle NowPaintBlcok = MainCanvas.FindName(RectName) as Rectangle;
+                            NowPaintBlcok.SetValue(Canvas.LeftProperty, (double)BlX * BlockWidth + CamMoveX);
+                            NowPaintBlcok.SetValue(Canvas.TopProperty, (double)BlY * BlockHeight + CamMoveY);
+                        }
+                    }
+                    Thread.Sleep(10);
                     DoEvents();
+                    
                     
                 }
             });
@@ -262,14 +285,11 @@ namespace _WPF_RPG
         public void DoEvents()
         {
             DispatcherFrame frame = new DispatcherFrame();
-            Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background,
-                 new DispatcherOperationCallback(delegate (object f)
-                 {
-                     ((DispatcherFrame)f).Continue = false;
-
+            Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background,new DispatcherOperationCallback(delegate (object f)
+            {
+                 ((DispatcherFrame)f).Continue = false;
                      return null;
-                 }
-                    ), frame);
+                 }), frame);
             Dispatcher.PushFrame(frame);
         }
     }
@@ -287,6 +307,18 @@ namespace _WPF_RPG
         //视角属性
         double NowCameraPosX = 0;
         double NowCameraPosY = 0;
+
+        //菜单属性
+        float MaxUseRegion = 0.8F;
+        double MenuDistance = 10;
+        //
+        int MenuWidth = 150;
+        int MenuHeight = 15;
+
+        public object[] MenuProperties
+        {
+            get { return new object[] { MaxUseRegion, MenuDistance ,MenuWidth , MenuHeight}; }
+        }
 
         public double NCPX 
         { 
@@ -307,7 +339,7 @@ namespace _WPF_RPG
         public double[] CalBC()
         {
             //预加载方块数，保证低性能可容纳
-            int PreLoadBlcoks = 16;
+            int PreLoadBlcoks = 4;
             //计算屏幕可容纳方块数量，确定绘制始末点
             double BCXStart = - PreLoadBlcoks;
             double BCXEnd = Math.Ceiling((double)(ScreenWidth / BlockWidth)) + PreLoadBlcoks;
