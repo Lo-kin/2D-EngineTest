@@ -21,8 +21,23 @@ namespace _WPF_RPG
     {
         public object Normal()
         {
-
+             
             return new object();
+        }
+
+        public double[] CamFeedBack(double CavShiftX , double CavShiftY , double CamPosX , double CamPosY)
+        {
+            GameProperties GP = new GameProperties();
+            double ScreenW = GP.ScreenWidth;
+            double ScreenH = GP.ScreenHeight;
+            double CCDistanceX = ScreenW / 2;
+            double CCDistanceY = ScreenH / 2;
+            //                               之前的区域
+            double[] OldRegionX = new double[] { 
+                Math.Abs(CCDistanceX - 2 * Math.Abs(CavShiftX - CCDistanceX)) ,
+                Math.Abs(CCDistanceY - 2 * Math.Abs(CavShiftY - CCDistanceY)) ,
+            };
+            return new double[] { };
         }
 
     }
