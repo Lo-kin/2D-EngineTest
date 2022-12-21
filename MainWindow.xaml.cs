@@ -38,9 +38,9 @@ namespace _WPF_RPG
 
         bool[] KeyPressStat = new bool[4];
         DateTime[] KeyPressTime = new DateTime[4];
-        bool[] KeyExcuteStat = new bool[] { true , true, true, true};
-        double[] KeyPreesSpan = new double[] {0 , 0 , 0 , 0 };
-        
+        bool[] KeyExcuteStat = new bool[] { true, true, true, true };
+        double[] KeyPreesSpan = new double[] { 0, 0, 0, 0 };
+
         private void MainWindow_PreviewKeyUp(object sender, KeyEventArgs e)
         {
             DateTime EndTime = DateTime.Now;
@@ -81,7 +81,7 @@ namespace _WPF_RPG
                     KeyPreesSpan[0] = 0;
                 }
                 //如果不是就计算时间并使处理为假
-                
+
                 TimeSpan KeyASpan = StartTime - KeyPressTime[0];
                 KeyPressTime[0] = StartTime;
                 KeyPreesSpan[0] += KeyASpan.TotalMilliseconds;
@@ -100,7 +100,7 @@ namespace _WPF_RPG
                 {
                     KeyPreesSpan[1] = 0;
                 }
-                
+
                 TimeSpan KeyWSpan = StartTime - KeyPressTime[1];
                 KeyPressTime[1] = StartTime;
                 KeyPreesSpan[1] += KeyWSpan.TotalMilliseconds;
@@ -185,7 +185,7 @@ namespace _WPF_RPG
         }
 
 
-        private void LoadPainter(object sender , EventArgs e)
+        private void LoadPainter(object sender, EventArgs e)
         {
             //获得绘制属性
             GameProperties GP = new GameProperties();
@@ -197,7 +197,7 @@ namespace _WPF_RPG
             int PBEX = (int)PaintGP[1];
             //int PainterW = (int)PaintGP[4];
             //int PainterH = (int)PaintGP[5];
-            
+
             //单个方块的属性
             int BlockWidth = GameProperties.BlockWidth;
             int BlockHeight = GameProperties.BlockHeight;
@@ -207,7 +207,7 @@ namespace _WPF_RPG
             Canvas MainCanvas = new Canvas();
             BGCanvas.Children.Remove(BGCanvas.FindName("MenuCanvas") as UIElement);
             BGCanvas.Children.Add(MainCanvas);
-            BGCanvas.RegisterName("PaintCanvas" , MainCanvas);
+            BGCanvas.RegisterName("PaintCanvas", MainCanvas);
             BGCanvas.Background = new SolidColorBrush(Color.FromRgb(100, 150, 100));
             //初始化绘图位置
             MainCanvas.SetValue(Canvas.LeftProperty, 0d);
@@ -216,12 +216,12 @@ namespace _WPF_RPG
             //定义一个动态大小数组储存绘制信息
             //object[,] PreLoadPainter = new object[PainterW , PainterH];
 
-            
-            SolidColorBrush DefaultColor = new SolidColorBrush(Color.FromRgb(150 , 150 , 150));
+
+            SolidColorBrush DefaultColor = new SolidColorBrush(Color.FromRgb(150, 150, 150));
             Random r = new Random();
             Random g = new Random();
             Random b = new Random();
-            
+
             for (int BlY = PBSY; BlY <= PBEY; BlY++)
             {
                 for (int BlX = PBSX; BlX <= PBEX; BlX++)
@@ -230,16 +230,16 @@ namespace _WPF_RPG
                     Rectangle NowPaintBlcok = new Rectangle();
                     NowPaintBlcok.Width = BlockWidth;
                     NowPaintBlcok.Height = BlockHeight;
-                    NowPaintBlcok.Fill = new SolidColorBrush(Color.FromRgb((byte)r.Next(0,255) , (byte)g.Next(0, 255), (byte)b.Next(0, 255)));
+                    NowPaintBlcok.Fill = new SolidColorBrush(Color.FromRgb((byte)r.Next(0, 255), (byte)g.Next(0, 255), (byte)b.Next(0, 255)));
                     NowPaintBlcok.SetValue(Canvas.LeftProperty, (double)BlX * BlockWidth);
                     NowPaintBlcok.SetValue(Canvas.TopProperty, (double)BlY * BlockHeight);
                     MainCanvas.Children.Add(NowPaintBlcok);
                     //在注册名时不能带有特殊符号，例如-
                     string NX;
                     string NY;
-                    if (BlX <= 0) { NX = "_" + -BlX ; }
+                    if (BlX <= 0) { NX = "_" + -BlX; }
                     else { NX = Convert.ToString(BlX); }
-                    if (BlY <= 0) { NY = "_" + -BlY ; }
+                    if (BlY <= 0) { NY = "_" + -BlY; }
                     else { NY = Convert.ToString(BlY); }
                     string RectName = "x" + NX + "y" + NY;
                     MainCanvas.RegisterName(RectName, NowPaintBlcok);
@@ -257,8 +257,8 @@ namespace _WPF_RPG
         private void Painter()
         {
             //获得绘制属性
-             GameProperties GP = new GameProperties();
-            
+            GameProperties GP = new GameProperties();
+
             double[] PaintGP = GP.CalBC();
             //绘制属性
             int PBSY = (int)PaintGP[2];
@@ -268,24 +268,33 @@ namespace _WPF_RPG
             //单个方块的属性
             int BlockWidth = GameProperties.BlockWidth;
             int BlockHeight = GameProperties.BlockHeight;
+            //视角属性
+            double[] CamPosPak = GP.CamProperties;
+            double CamMoveX = CamPosPak[0];
+            double CamMoveY = CamPosPak[1];
 
             Canvas BGCanvas = this.FindName("BGCanvas") as Canvas;
             Canvas MainCanvas = BGCanvas.FindName("PaintCanvas") as Canvas;
-            double spd = 0.01;
-            double CamMoveX = 0;
-            double CamMoveY = 0;
+
+            double spd = 0.05;
 
             double NewRegionX = 0;
             double NewRegionY = 0;
 
-            for (;;)
+            Label t = new Label();
+            t.Width = 200;
+            t.Height = 80;
+            t.SetValue(Canvas.LeftProperty, 10d);
+            t.SetValue(Canvas.TopProperty, 10d);
+            BGCanvas.Children.Add(t);
+
+            for (; ; )
             {
                 //判断按键是否按下并判断处理状况
                 if (KeyPressStat[0] == true && KeyExcuteStat[0] == false)
                 {
                     //获取按键时间，并标记事件已处理
                     double MTtoIntL = KeyPreesSpan[0];
-                    CamMoveX += MTtoIntL * spd;
                     KeyExcuteStat[0] = true;
                 }
                 if (KeyPressStat[1] == true && KeyExcuteStat[1] == false)
@@ -312,12 +321,40 @@ namespace _WPF_RPG
 
                 }
 
+                t.Content = "CamX:"+CamMoveX +"\n"+"CamY:"+CamMoveY;
+
                 MainCanvas.SetValue(Canvas.LeftProperty, CamMoveX);
                 MainCanvas.SetValue(Canvas.TopProperty, CamMoveY);
 
                 DoEvents();
-                
+                Thread.Sleep(10);
             }
+        }
+
+        public void InPaintUI()
+        {
+            Canvas BGCanvas = this.FindName("BGCanvas") as Canvas;
+            Canvas MainCanvas = BGCanvas.FindName("PaintCanvas") as Canvas;
+
+            //Health Bar
+            Rectangle HBBG = new Rectangle();
+            HBBG.Width = 100;
+            HBBG.Height = 10;
+            HBBG.Fill = new SolidColorBrush(Color.FromRgb(0 , 0 , 0));
+            HBBG.SetValue(Canvas.LeftProperty, 50d);
+            HBBG.SetValue(Canvas.TopProperty, 550d);
+            Rectangle HBPerc = new Rectangle();
+            HBPerc.Width = 100;
+            HBPerc.Height = 10;
+            HBPerc.Fill = new SolidColorBrush(Color.FromRgb(255, 0, 0));
+            HBPerc.SetValue(Canvas.LeftProperty, 50d);
+            HBPerc.SetValue(Canvas.TopProperty, 550d);
+            MainCanvas.RegisterName("HBBG" , HBBG);
+            MainCanvas.RegisterName("HBPerc" , HBPerc);
+            MainCanvas.Children.Add(HBBG);
+            MainCanvas.Children.Add(HBPerc);
+
+            
         }
 
         public void DoEvents()
@@ -334,9 +371,17 @@ namespace _WPF_RPG
         }
 
         private void LoadCharacters()
-        {
+        { 
 
+            
         }
+    }
+
+    class CharacterProperties
+    {
+        public double Speed = 0.03;
+        public string Name = "Lenny";
+        
     }
 
     class GameProperties
@@ -365,15 +410,10 @@ namespace _WPF_RPG
             get { return new object[] { MaxUseRegion, MenuDistance ,MenuWidth , MenuHeight}; }
         }
 
-        public double NCPX 
+        public double[] CamProperties
         { 
-            get { return NowCameraPosX; }
-            set { NowCameraPosX = value; }
-        }
-        public double NCPY
-        {
-            get { return NowCameraPosY; }
-            set { NowCameraPosY = value; }
+            get { return new double[] { NowCameraPosX , NowCameraPosY }; }
+            set { NowCameraPosX = value[0];NowCameraPosY = value[1]; }
         }
 
         public int[] RetGPs() 

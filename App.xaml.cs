@@ -17,6 +17,13 @@ namespace _WPF_RPG
 
     }
 
+    class Server
+    {
+        object[] Players = new object[20];
+        object ServerMap = new object();
+
+    }
+
     public class ExcuteCompute
     {
         public object Normal()
