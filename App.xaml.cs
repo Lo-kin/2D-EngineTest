@@ -24,7 +24,7 @@ namespace _WPF_RPG
         object[] Players = new object[20];
         object ServerMap = new object();
 
-        public object[,] Init(int? Seed)
+        public object[] Init(int? Seed)
         {
             int seed;
             if (Seed == null)
@@ -44,7 +44,7 @@ namespace _WPF_RPG
             int SpwanPosY = RandSpwanPosY.Next(-200, 200);
             GenTerrian GT = new GenTerrian();
             GameProperties GP = new GameProperties();
-            object[,] IM = GT.InitMap(seed, SpwanPosX, SpwanPosY , GP.PaintDistance);
+            object[] IM = GT.InitMap(seed, SpwanPosX, SpwanPosY , GP.PaintDistance);
             return IM;
 
         }
@@ -52,8 +52,9 @@ namespace _WPF_RPG
 
     class GenTerrian
     {
-        public object[,] InitMap(int seed , int SPx , int SPy , int PDist)
+        public object[] InitMap(int seed , int SPx , int SPy , int PDist)
         {
+            object[] MixMap = new object[4]; 
             object[,] Map = new object[2* PDist, 2 * PDist];
 
             for (int y = 0; y < 2 * PDist; y++)
@@ -64,30 +65,26 @@ namespace _WPF_RPG
                 }
             }
 
-            for (int x = 0; x <2 * PDist;x ++)
+            for (int x = 0; x < 2 * PDist; x++)
             {
-                double FuncY = (x ^ 3) / (5 + 1);
-                int Exp1 = (int)Math.Ceiling(FuncY);
-                int Exp2 = (int)Math.Floor(FuncY);
-                if (Exp1 <= 0 & Exp1 >= 2*PDist)
+                double Cal = 3 * x;
+                int up = (int)Math.Ceiling(Cal);
+                int down = (int)Math.Floor(Cal);
+                if (down >= 0 & down <= 2 * PDist)
                 {
-                    
+                    Map[x, down] = Block.Water();
                 }
-                else
+                if (up >=0 &up <= 2 * PDist)
                 {
-                    Map[x, Exp1] = Block.Water();
+                    Map[x, up] = Block.Water();
                 }
-                if (Exp2 <= 0 && Exp2 >= 2 * PDist)
-                {
-                    
-                }
-                else
-                {
-                    Map[x, Exp2] = Block.Water();
-                }
-
             }
-            return Map;
+
+            MixMap[0] = seed;
+            MixMap[1] = SPx;
+            MixMap[2] = SPy;
+            MixMap[3] = Map;
+            return MixMap;
         }
         public object Default(int Seed)
         {
@@ -122,7 +119,7 @@ namespace _WPF_RPG
 
     class GameProperties
     {
-        public int PaintDistance = 200;
+        public int PaintDistance = 1000;
     }
 
     class Block
@@ -142,71 +139,11 @@ namespace _WPF_RPG
     {
         public object[] Default()
         {
-            string ChaID = HashBuilder.Hash_MD5_16(DateTime.Now.ToString());
+            string ChaID = DateTime.Now.ToString();
             string Name = "Lenny";
             double Speed = 0.03;
             return new object[] { };
         }
     }
-
-    class HashBuilder
-    {
-        public static string Hash_MD5_16(string word, bool toUpper = true)
-        {
-            try
-            {
-                string sHash = Hash_MD5_32(word).Substring(8, 16);
-                return toUpper ? sHash : sHash.ToUpper();
-            }
-            catch (Exception ex)
-            {
-                throw new Exception(ex.Message);
-            }
-        }
-
-        public static string Hash_MD5_32(string word, bool toUpper = true)
-        {
-            try
-            {
-                System.Security.Cryptography.MD5CryptoServiceProvider MD5CSP
-                    = new System.Security.Cryptography.MD5CryptoServiceProvider();
-
-                byte[] bytValue = System.Text.Encoding.UTF8.GetBytes(word);
-                byte[] bytHash = MD5CSP.ComputeHash(bytValue);
-                MD5CSP.Clear();
-
-                //根据计算得到的Hash码翻译为MD5码
-                string sHash = "", sTemp = "";
-                for (int counter = 0; counter < bytHash.Count(); counter++)
-                {
-                    long i = bytHash[counter] / 16;
-                    if (i > 9)
-                    {
-                        sTemp = ((char)(i - 10 + 0x41)).ToString();
-                    }
-                    else
-                    {
-                        sTemp = ((char)(i + 0x30)).ToString();
-                    }
-                    i = bytHash[counter] % 16;
-                    if (i > 9)
-                    {
-                        sTemp += ((char)(i - 10 + 0x41)).ToString();
-                    }
-                    else
-                    {
-                        sTemp += ((char)(i + 0x30)).ToString();
-                    }
-                    sHash += sTemp;
-                }
-
-                //根据大小写规则决定返回的字符串
-                return toUpper ? sHash : sHash.ToLower();
-            }
-            catch (Exception ex)
-            {
-                throw new Exception(ex.Message);
-            }
-        }
-    }
+    
 }

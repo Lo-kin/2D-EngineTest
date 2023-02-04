@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -80,13 +81,13 @@ namespace _WPF_RPG
 
         }
 
-        object[,] Map = new object[,] { };
+        object[] Map = new object[4] ;
 
         private void LoadPainter()
         {
             //获得绘制属性
             PaintProperties GP = new PaintProperties();
-            double[] PaintGP = GP.CalBC();
+            double[] PaintGP = GP.CalBC(0d ,0d);
             //绘制属性
             int PBSY = (int)PaintGP[2];
             int PBEY = (int)PaintGP[3];
@@ -103,19 +104,27 @@ namespace _WPF_RPG
             BGCanvas.Children.Remove(BGCanvas.FindName("MenuCanvas") as UIElement);
             BGCanvas.Children.Add(MainCanvas);
             BGCanvas.RegisterName("PaintCanvas", MainCanvas);
-            BGCanvas.Background = new SolidColorBrush(Color.FromRgb(100, 150, 100));
+            BGCanvas.Background = new SolidColorBrush(Color.FromRgb(255, 255, 255));
             //初始化绘图位置
             MainCanvas.SetValue(Canvas.LeftProperty, 0d);
             MainCanvas.SetValue(Canvas.TopProperty, 0d);
 
+            GameArgs[2] = PaintGP;
+
+            int yIndex = -1;
+            int xIndex = -1;
             for (int BlY = PBSY; BlY <= PBEY; BlY++)
             {
+                yIndex++;
                 for (int BlX = PBSX; BlX <= PBEX; BlX++)
                 {
+                    xIndex++;
+                    byte[] BColor = (byte[])((object[])((object[,])Map[3])[xIndex , yIndex ])[1];
+
                     Rectangle NowPaintBlcok = new Rectangle();
                     NowPaintBlcok.Width = BlockWidth;
                     NowPaintBlcok.Height = BlockHeight;
-                    NowPaintBlcok.Fill = new SolidColorBrush(Color.FromRgb(255 , 255 ,255));
+                    NowPaintBlcok.Fill = new SolidColorBrush(Color.FromRgb(BColor[0], BColor[1], BColor[2]));
                     NowPaintBlcok.SetValue(Canvas.LeftProperty, (double)BlX * BlockWidth);
                     NowPaintBlcok.SetValue(Canvas.TopProperty, (double)BlY * BlockHeight);
                     MainCanvas.Children.Add(NowPaintBlcok);
@@ -133,35 +142,57 @@ namespace _WPF_RPG
 
         }
 
+        object[] GameArgs = new object[] { 0d, 0d , 1};
+        double[] MapShift = new double[] { 0d, 0d };
+
         private void Painter()
         {
             //获得绘制属性
-            PaintProperties GP = new PaintProperties();
+            PaintProperties PP = new PaintProperties();
 
             //视角属性
-            double[] CamPosPak = GP.CamProperties;
-            double CamMoveX = CamPosPak[0];
-            double CamMoveY = CamPosPak[1];
+            double[] CamPosPak = PP.CamProperties;
+            int BlockFlush = PP.PreLoadBlcoks;
 
             Canvas BGCanvas = this.FindName("BGCanvas") as Canvas;
             Canvas MainCanvas = BGCanvas.FindName("PaintCanvas") as Canvas;
             InPaintUI();
             Label DebugMsg = BGCanvas.FindName("DebugMsg") as Label;
 
+            Rectangle r = new Rectangle();
+            r.Width = 10;
+            r.Height = 10;
+            r.Fill = new SolidColorBrush(Color.FromRgb((byte)0 , (byte)0 , (byte)0));
+            r.SetValue(Canvas.LeftProperty, 405d);
+            r.SetValue(Canvas.TopProperty, 305d);
+            BGCanvas.Children.Add(r);
+
             for (; ; )
             {
                 if (KeyValue[4] == 1) { break; }
 
-                CamMoveX = KeyValue[0] + KeyValue[2];
-                CamMoveY = KeyValue[1] + KeyValue[3];
-                MainCanvas.SetValue(Canvas.LeftProperty, CamMoveX);
-                MainCanvas.SetValue(Canvas.TopProperty, CamMoveY);
-                DebugMsg.Content = "CamX:" + CamMoveX + "\n" + "CamY:" + CamMoveY;
+                MainCanvas.SetValue(Canvas.LeftProperty, MapShift[0]);
+                MainCanvas.SetValue(Canvas.TopProperty, MapShift[1]);
+                DebugMsg.Content = "CamX:" + GameArgs[0] + "\n" + "CamY:" + GameArgs[1];
+
 
                 DoEvents();
-                Thread.Sleep(10);
+                Thread.Sleep(5);
             }
             Environment.Exit(0);
+        }
+
+        private double[] ChangePaintRegion()
+        {
+            PaintProperties PP = new PaintProperties();
+
+            double CamMoveX = KeyValue[0] + KeyValue[2];
+            double CamMoveY = KeyValue[1] + KeyValue[3];
+            double ScrMinX = CamMoveX - (PP.ScreenWidth / 2);
+            double ScrMinY = CamMoveY - (PP.ScreenHeight / 2);
+
+
+            return new double[] { };
         }
 
         public void DoEvents()
@@ -207,15 +238,13 @@ namespace _WPF_RPG
             BGCanvas.Children.Add(DebugMsg);
 
             TextBox DBox = new TextBox();
-            DBox.Background = new SolidColorBrush(Color.FromArgb(70, 20, 20, 20));
+            DBox.Background = new SolidColorBrush(Color.FromArgb(20, 20, 20, 20));
             DBox.Height = 16;
             DBox.Width = 500;
             DBox.SetValue(Canvas.LeftProperty, 5d);
             DBox.SetValue(Canvas.TopProperty, 500d);
             BGCanvas.Children.Add(DBox);
             BGCanvas.RegisterName("DBox", BGCanvas);
-
-
         }
 
         private object[,] ExcuteMenuPos()
@@ -275,9 +304,20 @@ namespace _WPF_RPG
             }
         }
 
+        private void MapShiftChecker()
+        {
+            while (true)
+            {
+
+                if (MapShift[0] >= 5d || MapShift[0] <= -5)
+
+                Thread.Sleep(1);
+            }
+        }
+
         public void KeyExcuter()
         {
-            double spd = 1;
+            double spd = 0.12;
             //每个按键对应特殊的算法
             object[] KeyGrade = new object[] {
                 new object[] {spd , "+"},
@@ -286,6 +326,9 @@ namespace _WPF_RPG
                 new object[] {spd , "-"},
                 new object[] {-1.0 , "*"}
             };
+
+            PaintProperties PP = new PaintProperties();
+
 
             while (true)
             {
@@ -315,6 +358,15 @@ namespace _WPF_RPG
                         }
                     }
                 }
+                MapShift[0] += KeyValue[0] + KeyValue[2];
+                MapShift[1] += KeyValue[1] + KeyValue[3];
+                GameArgs[0] = KeyValue[0] + KeyValue[2] + (double)GameArgs[0];
+                GameArgs[1] = KeyValue[1] + KeyValue[3] + (double)GameArgs[1];
+                KeyValue[0] = 0d;
+                KeyValue[1] = 0d;
+                KeyValue[2] = 0d;
+                KeyValue[3] = 0d;
+
                 Thread.Sleep(1);
             }
         }
@@ -341,6 +393,9 @@ namespace _WPF_RPG
         int MenuWidth = 150;
         int MenuHeight = 15;
 
+        //预加载方块数，保证低性能可容纳
+        public int PreLoadBlcoks = 5;
+
         public object[] MenuProperties
         {
             get { return new object[] { MaxUseRegion, MenuDistance ,MenuWidth , MenuHeight}; }
@@ -354,18 +409,19 @@ namespace _WPF_RPG
         {
             return new int[] { };
         }
-        public double[] CalBC()
+        public double[] CalBC(double CamPosX , double CamPosY)
         {
-            //预加载方块数，保证低性能可容纳
-            int PreLoadBlcoks = 5;
+
             //计算屏幕可容纳方块数量，确定绘制始末点
-            double BCXStart = - PreLoadBlcoks;
-            double BCXEnd = Math.Ceiling((double)(ScreenWidth / BlockWidth)) + PreLoadBlcoks;
+            double BCXStart = Math.Floor(CamPosX/ BlockWidth) - PreLoadBlcoks ;
+            double BCXEnd = Math.Ceiling(((CamPosX + ScreenWidth) / BlockWidth)) + PreLoadBlcoks ;
             double BCXCount = BCXEnd - BCXStart;
 
-            double BCYStart = - PreLoadBlcoks;
-            double BCYEnd = Math.Ceiling((double)(ScreenHeight / BlockHeight)) + PreLoadBlcoks;
+            double BCYStart = Math.Floor(CamPosY/ BlockHeight)- PreLoadBlcoks;
+            double BCYEnd = Math.Ceiling((CamPosY + ScreenHeight) / BlockHeight) + PreLoadBlcoks ;
             double BCYCount = BCYEnd - BCYStart;
+
+            
 
             return new double[] { BCXStart , BCXEnd , BCYStart , BCYEnd  , BCXCount , BCYCount};
         }
