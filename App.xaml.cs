@@ -24,6 +24,29 @@ namespace _WPF_RPG
         object[] Players = new object[20];
         object ServerMap = new object();
 
+        public object[] TestInit()
+        {
+            Random r = new Random();
+            object[,] Map = new object[1001 , 1001];
+            int spx = r.Next(-10, 10);
+            int spy = r.Next(-10, 10);
+            for (int y = 0; y <= 1000;y++)
+            {
+                for (int x = 0; x <= 1000; x ++)
+                {
+                    if (r.Next(0,5) <= 3)
+                    {
+                        Map[x, y] = Block.Dirt();
+                    }
+                    else
+                    {
+                        Map[x, y] = Block.Water();
+                    }
+                }
+            }
+            return new object[] { Map , spx , spy};
+        }
+
         public object[] Init(int? Seed)
         {
             int seed;
@@ -36,6 +59,8 @@ namespace _WPF_RPG
             {
                 seed = (int)Seed;
             }
+
+            PaintProperties PP = new PaintProperties();
 
             //使玩家的生成点在正负200内
             Random RandSpwanPosX = new Random();
@@ -57,26 +82,21 @@ namespace _WPF_RPG
             object[] MixMap = new object[4]; 
             object[,] Map = new object[2* PDist, 2 * PDist];
 
+            
+
             for (int y = 0; y < 2 * PDist; y++)
             {
                 for (int x = 0; x < 2 * PDist; x++)
                 {
-                    Map[x, y] = Block.Dirt();
-                }
-            }
-
-            for (int x = 0; x < 2 * PDist; x++)
-            {
-                double Cal = 3 * x;
-                int up = (int)Math.Ceiling(Cal);
-                int down = (int)Math.Floor(Cal);
-                if (down >= 0 & down <= 2 * PDist)
-                {
-                    Map[x, down] = Block.Water();
-                }
-                if (up >=0 &up <= 2 * PDist)
-                {
-                    Map[x, up] = Block.Water();
+                    Random r = new Random();
+                    if (r.Next(0, 2) == 0)
+                    {
+                        Map[x, y] = Block.Dirt();
+                    }
+                    else
+                    {
+                        Map[x, y] = Block.Water();
+                    }
                 }
             }
 
@@ -120,6 +140,12 @@ namespace _WPF_RPG
     class GameProperties
     {
         public int PaintDistance = 1000;
+        
+        public int PaintTick = 5;
+        public int FlushCheckTick = 3;
+        public int KeyCheckTick = 2;
+
+        
     }
 
     class Block

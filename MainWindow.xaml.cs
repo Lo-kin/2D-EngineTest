@@ -74,32 +74,34 @@ namespace _WPF_RPG
             Thread KExc = new Thread(new ThreadStart(KeyExcuter));
             KExc.IsBackground = true;
             KExc.Start();
+            Thread MSChecker = new Thread(new ThreadStart(MapShiftChecker));
+            MSChecker.IsBackground = true;
+            MSChecker.Start();
             Server Sv = new Server();
-            Map = Sv.Init(null);
+            Map = Sv.TestInit();
             LoadPainter();
             Painter();
 
         }
 
-        object[] Map = new object[4] ;
+        object[] Map = new object[0] ;
 
         private void LoadPainter()
         {
             //获得绘制属性
-            PaintProperties GP = new PaintProperties();
-            double[] PaintGP = GP.CalBC(0d ,0d);
+            PaintProperties PP = new PaintProperties();
+
+            double[] PaintGP = PP.ScrChunk();
             //绘制属性
-            int PBSY = (int)PaintGP[2];
-            int PBEY = (int)PaintGP[3];
-            int PBSX = (int)PaintGP[0];
-            int PBEX = (int)PaintGP[1];
+            int PaintChunkWidth = (int)PaintGP[0];
+            int PaintChunkHeight = (int)PaintGP[1];
 
             //单个方块的属性
             int BlockWidth = PaintProperties.BlockWidth;
             int BlockHeight = PaintProperties.BlockHeight;
 
             //定义画布并添加到背景画布
-            Canvas BGCanvas = this.FindName("BGCanvas") as Canvas;
+            Canvas BGCanvas = FindName("BGCanvas") as Canvas;
             Canvas MainCanvas = new Canvas();
             BGCanvas.Children.Remove(BGCanvas.FindName("MenuCanvas") as UIElement);
             BGCanvas.Children.Add(MainCanvas);
@@ -111,23 +113,20 @@ namespace _WPF_RPG
 
             GameArgs[2] = PaintGP;
 
-            int yIndex = -1;
-            int xIndex = -1;
-            for (int BlY = PBSY; BlY <= PBEY; BlY++)
+            for (int BlY =  -PaintChunkHeight; BlY <= PaintChunkHeight * 2; BlY++)
             {
-                yIndex++;
-                for (int BlX = PBSX; BlX <= PBEX; BlX++)
+                for (int BlX = -PaintChunkWidth; BlX <= PaintChunkWidth * 2; BlX++)
                 {
-                    xIndex++;
-                    byte[] BColor = (byte[])((object[])((object[,])Map[3])[xIndex , yIndex ])[1];
+                    object[] BT = (Map[0] as object[,])[500 + BlX , 500 + BlY] as object[];
+                    byte[] cl = BT[1] as byte[];
 
                     Rectangle NowPaintBlcok = new Rectangle();
                     NowPaintBlcok.Width = BlockWidth;
                     NowPaintBlcok.Height = BlockHeight;
-                    NowPaintBlcok.Fill = new SolidColorBrush(Color.FromRgb(BColor[0], BColor[1], BColor[2]));
-                    NowPaintBlcok.SetValue(Canvas.LeftProperty, (double)BlX * BlockWidth);
+                    NowPaintBlcok.Fill = new SolidColorBrush(Color.FromRgb(cl[0], cl[1], cl[2]));
+                    NowPaintBlcok.SetValue(Canvas.LeftProperty, (double)BlX * BlockWidth) ;
                     NowPaintBlcok.SetValue(Canvas.TopProperty, (double)BlY * BlockHeight);
-                    MainCanvas.Children.Add(NowPaintBlcok);
+
                     //在注册名时不能带有特殊符号，例如-
                     string NX;
                     string NY;
@@ -135,11 +134,12 @@ namespace _WPF_RPG
                     else { NX = Convert.ToString(BlX); }
                     if (BlY <= 0) { NY = "_" + -BlY; }
                     else { NY = Convert.ToString(BlY); }
-                    string RectName = "x" + NX + "y" + NY;
+
+                    string RectName = /*"Px" + PCX + "Py" + PCY +*/ "x" + NX + "y" + NY;
                     MainCanvas.RegisterName(RectName, NowPaintBlcok);
+                    MainCanvas.Children.Add(NowPaintBlcok);
                 }
             }
-
         }
 
         object[] GameArgs = new object[] { 0d, 0d , 1};
@@ -152,20 +152,11 @@ namespace _WPF_RPG
 
             //视角属性
             double[] CamPosPak = PP.CamProperties;
-            int BlockFlush = PP.PreLoadBlcoks;
 
             Canvas BGCanvas = this.FindName("BGCanvas") as Canvas;
             Canvas MainCanvas = BGCanvas.FindName("PaintCanvas") as Canvas;
             InPaintUI();
             Label DebugMsg = BGCanvas.FindName("DebugMsg") as Label;
-
-            Rectangle r = new Rectangle();
-            r.Width = 10;
-            r.Height = 10;
-            r.Fill = new SolidColorBrush(Color.FromRgb((byte)0 , (byte)0 , (byte)0));
-            r.SetValue(Canvas.LeftProperty, 405d);
-            r.SetValue(Canvas.TopProperty, 305d);
-            BGCanvas.Children.Add(r);
 
             for (; ; )
             {
@@ -173,26 +164,12 @@ namespace _WPF_RPG
 
                 MainCanvas.SetValue(Canvas.LeftProperty, MapShift[0]);
                 MainCanvas.SetValue(Canvas.TopProperty, MapShift[1]);
-                DebugMsg.Content = "CamX:" + GameArgs[0] + "\n" + "CamY:" + GameArgs[1];
-
+                DebugMsg.Content = "CamX:" + GameArgs[0] + "\n" + "CamY:" + GameArgs[1] + "\n" + "MapShiftX:" + MapShift[0] + "\n" + "MapShiftY:" + MapShift[1] ;
 
                 DoEvents();
                 Thread.Sleep(5);
             }
             Environment.Exit(0);
-        }
-
-        private double[] ChangePaintRegion()
-        {
-            PaintProperties PP = new PaintProperties();
-
-            double CamMoveX = KeyValue[0] + KeyValue[2];
-            double CamMoveY = KeyValue[1] + KeyValue[3];
-            double ScrMinX = CamMoveX - (PP.ScreenWidth / 2);
-            double ScrMinY = CamMoveY - (PP.ScreenHeight / 2);
-
-
-            return new double[] { };
         }
 
         public void DoEvents()
@@ -204,47 +181,6 @@ namespace _WPF_RPG
                 return null;
             }), frame);
             Dispatcher.PushFrame(frame);
-        }
-
-        public void InPaintUI()
-        {
-            Canvas BGCanvas = this.FindName("BGCanvas") as Canvas;
-            Canvas MainCanvas = BGCanvas.FindName("PaintCanvas") as Canvas;
-
-            //Health Bar
-            Rectangle HBBG = new Rectangle();
-            HBBG.Width = 200;
-            HBBG.Height = 20;
-            HBBG.Fill = new SolidColorBrush(Color.FromRgb(0 , 0 , 0));
-            HBBG.SetValue(Canvas.LeftProperty, 500d);
-            HBBG.SetValue(Canvas.TopProperty, 50d);
-            Rectangle HBPerc = new Rectangle();
-            HBPerc.Width = 200;
-            HBPerc.Height = 20;
-            HBPerc.Fill = new SolidColorBrush(Color.FromRgb(255, 0, 0));
-            HBPerc.SetValue(Canvas.LeftProperty, 500d);
-            HBPerc.SetValue(Canvas.TopProperty, 50d);
-            BGCanvas.RegisterName("HBBG" , HBBG);
-            BGCanvas.RegisterName("HBPerc" , HBPerc);
-            BGCanvas.Children.Add(HBBG);
-            BGCanvas.Children.Add(HBPerc);
-
-            Label DebugMsg = new Label();
-            DebugMsg.Width = 800;
-            DebugMsg.Height = 600;
-            DebugMsg.SetValue(Canvas.LeftProperty, 10d);
-            DebugMsg.SetValue(Canvas.TopProperty, 10d);
-            BGCanvas.RegisterName("DebugMsg", DebugMsg);
-            BGCanvas.Children.Add(DebugMsg);
-
-            TextBox DBox = new TextBox();
-            DBox.Background = new SolidColorBrush(Color.FromArgb(20, 20, 20, 20));
-            DBox.Height = 16;
-            DBox.Width = 500;
-            DBox.SetValue(Canvas.LeftProperty, 5d);
-            DBox.SetValue(Canvas.TopProperty, 500d);
-            BGCanvas.Children.Add(DBox);
-            BGCanvas.RegisterName("DBox", BGCanvas);
         }
 
         private object[,] ExcuteMenuPos()
@@ -304,34 +240,90 @@ namespace _WPF_RPG
             }
         }
 
+        bool FlushXStat = false;
+        bool FlushYStat = false;
         private void MapShiftChecker()
         {
+            PaintProperties PP = new PaintProperties();
+            double[] PaintGP = PP.ScrChunk();
+            int PaintChunkWidth = (int)PaintGP[0];
+            int PaintChunkHeight = (int)PaintGP[1];
+
             while (true)
             {
+                if (MapShift[0] >= PaintChunkWidth * PaintProperties.BlockWidth / 2 || MapShift[0] <= -PaintChunkWidth * PaintProperties.BlockWidth / 2)
+                {
 
-                if (MapShift[0] >= 5d || MapShift[0] <= -5)
+                    FlushXStat = true;
+                }
+                if (MapShift[1] >= PaintChunkHeight * PaintProperties.BlockHeight / 2 || MapShift[1] <= -PaintChunkHeight * PaintProperties.BlockHeight / 2)
+                {
+                    
+                    FlushYStat = true;
+                }
 
-                Thread.Sleep(1);
+                if (FlushXStat == true || FlushYStat == true)
+                {
+                    Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        Canvas BGCanvas = FindName("BGCanvas") as Canvas;
+                        Canvas MainCanvas = BGCanvas.FindName("PaintCanvas") as Canvas;
+
+                        int shiftX = (int)(double)GameArgs[0] / PaintProperties.BlockWidth;
+                        int shiftY = (int)(double)GameArgs[1] / PaintProperties.BlockHeight;
+
+                        for (int BlY = -PaintChunkHeight; BlY <= PaintChunkHeight * 2; BlY++)
+                        {
+                            for (int BlX = -PaintChunkWidth; BlX <= PaintChunkWidth * 2; BlX++)
+                            {
+                                object[] BT = (Map[0] as object[,])[500 + BlX - shiftX, 500 + BlY - shiftY] as object[];
+                                byte[] cl = BT[1] as byte[];
+
+                                //在注册名时不能带有特殊符号，例如-
+                                string NX;
+                                string NY;
+                                if (BlX <= 0) { NX = "_" + -BlX; }
+                                else { NX = Convert.ToString(BlX); }
+                                if (BlY <= 0) { NY = "_" + -BlY; }
+                                else { NY = Convert.ToString(BlY); }
+                                string RectName = /*"Px" + PCX + "Py" + PCY +*/ "x" + NX + "y" + NY;
+                                Rectangle NowPaintBlcok = MainCanvas.FindName(RectName) as Rectangle;
+
+                                NowPaintBlcok.Fill = new SolidColorBrush(Color.FromRgb(cl[0], cl[1], cl[2]));
+                            }
+                        }
+                    }));
+                    MapShift[0] %= PaintProperties.BlockWidth;
+                    MapShift[1] %= PaintProperties.BlockHeight;
+                    FlushXStat = false;
+                    FlushYStat = false;
+                }
+
+                Thread.Sleep(5);
             }
+        }
+        
+        private void MapFlush()
+        {
+
         }
 
         public void KeyExcuter()
         {
-            double spd = 0.12;
+            double spd = 1.0d;
             //每个按键对应特殊的算法
             object[] KeyGrade = new object[] {
                 new object[] {spd , "+"},
                 new object[] {spd , "+"},
                 new object[] {spd , "-"},
                 new object[] {spd , "-"},
-                new object[] {-1.0 , "*"}
+                new object[] {-1.0 , "*"},
+                new object[] {-1},
             };
-
-            PaintProperties PP = new PaintProperties();
-
 
             while (true)
             {
+
                 for (int Num = 0; Num < KeyPressStat.Length; Num++)
                 {
                     object[] ExcCond = (object[])KeyGrade[Num];
@@ -358,6 +350,8 @@ namespace _WPF_RPG
                         }
                     }
                 }
+                
+
                 MapShift[0] += KeyValue[0] + KeyValue[2];
                 MapShift[1] += KeyValue[1] + KeyValue[3];
                 GameArgs[0] = KeyValue[0] + KeyValue[2] + (double)GameArgs[0];
@@ -367,8 +361,49 @@ namespace _WPF_RPG
                 KeyValue[2] = 0d;
                 KeyValue[3] = 0d;
 
-                Thread.Sleep(1);
+                Thread.Sleep(5);
             }
+        }
+
+        public void InPaintUI()
+        {
+            Canvas BGCanvas = this.FindName("BGCanvas") as Canvas;
+            Canvas MainCanvas = BGCanvas.FindName("PaintCanvas") as Canvas;
+
+            //Health Bar
+            Rectangle HBBG = new Rectangle();
+            HBBG.Width = 200;
+            HBBG.Height = 20;
+            HBBG.Fill = new SolidColorBrush(Color.FromRgb(0, 0, 0));
+            HBBG.SetValue(Canvas.LeftProperty, 500d);
+            HBBG.SetValue(Canvas.TopProperty, 50d);
+            Rectangle HBPerc = new Rectangle();
+            HBPerc.Width = 200;
+            HBPerc.Height = 20;
+            HBPerc.Fill = new SolidColorBrush(Color.FromRgb(255, 0, 0));
+            HBPerc.SetValue(Canvas.LeftProperty, 500d);
+            HBPerc.SetValue(Canvas.TopProperty, 50d);
+            BGCanvas.RegisterName("HBBG", HBBG);
+            BGCanvas.RegisterName("HBPerc", HBPerc);
+            BGCanvas.Children.Add(HBBG);
+            BGCanvas.Children.Add(HBPerc);
+
+            Label DebugMsg = new Label();
+            DebugMsg.Width = 800;
+            DebugMsg.Height = 600;
+            DebugMsg.SetValue(Canvas.LeftProperty, 10d);
+            DebugMsg.SetValue(Canvas.TopProperty, 10d);
+            BGCanvas.RegisterName("DebugMsg", DebugMsg);
+            BGCanvas.Children.Add(DebugMsg);
+
+            TextBox DBox = new TextBox();
+            DBox.Background = new SolidColorBrush(Color.FromArgb(20, 20, 20, 20));
+            DBox.Height = 16;
+            DBox.Width = 500;
+            DBox.SetValue(Canvas.LeftProperty, 5d);
+            DBox.SetValue(Canvas.TopProperty, 500d);
+            BGCanvas.Children.Add(DBox);
+            BGCanvas.RegisterName("DBox", BGCanvas);
         }
 
     }
@@ -394,7 +429,7 @@ namespace _WPF_RPG
         int MenuHeight = 15;
 
         //预加载方块数，保证低性能可容纳
-        public int PreLoadBlcoks = 5;
+        //public int PreLoadBlcoks = 5;
 
         public object[] MenuProperties
         {
@@ -405,26 +440,34 @@ namespace _WPF_RPG
             get { return new double[] { NowCameraPosX , NowCameraPosY }; }
             set { NowCameraPosX = value[0];NowCameraPosY = value[1]; }
         }
-        public int[] RetGPs() 
-        {
-            return new int[] { };
-        }
+
         public double[] CalBC(double CamPosX , double CamPosY)
         {
 
             //计算屏幕可容纳方块数量，确定绘制始末点
-            double BCXStart = Math.Floor(CamPosX/ BlockWidth) - PreLoadBlcoks ;
-            double BCXEnd = Math.Ceiling(((CamPosX + ScreenWidth) / BlockWidth)) + PreLoadBlcoks ;
+            double BCXStart = Math.Floor(CamPosX/ BlockWidth) ;
+            double BCXEnd = Math.Ceiling(((CamPosX + ScreenWidth) / BlockWidth)) ;
             double BCXCount = BCXEnd - BCXStart;
 
-            double BCYStart = Math.Floor(CamPosY/ BlockHeight)- PreLoadBlcoks;
-            double BCYEnd = Math.Ceiling((CamPosY + ScreenHeight) / BlockHeight) + PreLoadBlcoks ;
+            double BCYStart = Math.Floor(CamPosY/ BlockHeight);
+            double BCYEnd = Math.Ceiling((CamPosY + ScreenHeight) / BlockHeight) ;
             double BCYCount = BCYEnd - BCYStart;
-
-            
 
             return new double[] { BCXStart , BCXEnd , BCYStart , BCYEnd  , BCXCount , BCYCount};
         }
 
+        public double[] ScrChunk()
+        {
+            double BCXStart = 0;
+            double BCXEnd = Math.Ceiling((double)(ScreenWidth / BlockWidth));
+            double BCXCount = BCXEnd - BCXStart;
+
+            double BCYStart = 0;
+            double BCYEnd = Math.Ceiling((double)(ScreenHeight / BlockHeight));
+            double BCYCount = BCYEnd - BCYStart;
+
+            return new double[] { BCXCount, BCYCount };
+        }
     }
 }
+
