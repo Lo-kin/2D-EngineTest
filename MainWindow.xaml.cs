@@ -71,12 +71,10 @@ namespace _WPF_RPG
 
         private void MajorLoader(object sender, EventArgs e)
         {
-            Thread KExc = new Thread(new ThreadStart(KeyExcuter));
-            KExc.IsBackground = true;
-            KExc.Start();
-            Thread MSChecker = new Thread(new ThreadStart(MapShiftChecker));
-            MSChecker.IsBackground = true;
-            MSChecker.Start();
+            Thread MEC = new Thread(new ThreadStart(MainEventWhile));
+            MEC.IsBackground = true;
+            MEC.Start();
+
             Server Sv = new Server();
             Map = Sv.TestInit();
             LoadPainter();
@@ -149,7 +147,9 @@ namespace _WPF_RPG
         {
             //获得绘制属性
             PaintProperties PP = new PaintProperties();
-
+            double[] PaintGP = PP.ScrChunk();
+            int PaintChunkWidth = (int)PaintGP[0];
+            int PaintChunkHeight = (int)PaintGP[1];
             //视角属性
             double[] CamPosPak = PP.CamProperties;
 
@@ -158,13 +158,49 @@ namespace _WPF_RPG
             InPaintUI();
             Label DebugMsg = BGCanvas.FindName("DebugMsg") as Label;
 
+
+
             for (; ; )
             {
                 if (KeyValue[4] == 1) { break; }
 
+
+                if (FlushXStat == true || FlushYStat == true)
+                {
+                    int shiftX = (int)(double)GameArgs[0] / PaintProperties.BlockWidth;
+                    int shiftY = (int)(double)GameArgs[1] / PaintProperties.BlockHeight;
+
+                    for (int BlY = -PaintChunkHeight; BlY <= PaintChunkHeight * 2; BlY++)
+                    {
+                        for (int BlX = -PaintChunkWidth; BlX <= PaintChunkWidth * 2; BlX++)
+                        {
+                            object[] BT = (Map[0] as object[,])[500 + BlX - shiftX, 500 + BlY - shiftY] as object[];
+                            byte[] cl = BT[1] as byte[];
+
+                            //在注册名时不能带有特殊符号，例如-
+                            string NX;
+                            string NY;
+                            if (BlX <= 0) { NX = "_" + -BlX; }
+                            else { NX = Convert.ToString(BlX); }
+                            if (BlY <= 0) { NY = "_" + -BlY; }
+                            else { NY = Convert.ToString(BlY); }
+                            string RectName = /*"Px" + PCX + "Py" + PCY +*/ "x" + NX + "y" + NY;
+                            Rectangle NowPaintBlcok = MainCanvas.FindName(RectName) as Rectangle;
+
+                            NowPaintBlcok.Fill = new SolidColorBrush(Color.FromRgb(cl[0], cl[1], cl[2]));
+                        }
+                    }
+                    MapShift[0] %= PaintProperties.BlockWidth;
+                    MapShift[1] %= PaintProperties.BlockHeight;
+                    FlushXStat = false;
+                    FlushYStat = false;
+                }
+
                 MainCanvas.SetValue(Canvas.LeftProperty, MapShift[0]);
                 MainCanvas.SetValue(Canvas.TopProperty, MapShift[1]);
                 DebugMsg.Content = "CamX:" + GameArgs[0] + "\n" + "CamY:" + GameArgs[1] + "\n" + "MapShiftX:" + MapShift[0] + "\n" + "MapShiftY:" + MapShift[1] ;
+
+
 
                 DoEvents();
                 Thread.Sleep(5);
@@ -181,11 +217,6 @@ namespace _WPF_RPG
                 return null;
             }), frame);
             Dispatcher.PushFrame(frame);
-        }
-
-        private object[,] ExcuteMenuPos()
-        {
-            return new object[,] { };
         }
 
         bool[] KeyPressStat = new bool[5];
@@ -217,7 +248,6 @@ namespace _WPF_RPG
         }
         private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            DateTime StartTime = DateTime.Now;
             if (e.Key == Key.A)
             {
                 KeyPressStat[0] = true;
@@ -242,75 +272,17 @@ namespace _WPF_RPG
 
         bool FlushXStat = false;
         bool FlushYStat = false;
-        private void MapShiftChecker()
+
+        private int MainCheckTick = 5;
+
+        private void MainEventWhile()
         {
             PaintProperties PP = new PaintProperties();
             double[] PaintGP = PP.ScrChunk();
             int PaintChunkWidth = (int)PaintGP[0];
             int PaintChunkHeight = (int)PaintGP[1];
 
-            while (true)
-            {
-                if (MapShift[0] >= PaintChunkWidth * PaintProperties.BlockWidth / 2 || MapShift[0] <= -PaintChunkWidth * PaintProperties.BlockWidth / 2)
-                {
-
-                    FlushXStat = true;
-                }
-                if (MapShift[1] >= PaintChunkHeight * PaintProperties.BlockHeight / 2 || MapShift[1] <= -PaintChunkHeight * PaintProperties.BlockHeight / 2)
-                {
-                    
-                    FlushYStat = true;
-                }
-
-                if (FlushXStat == true || FlushYStat == true)
-                {
-                    Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        Canvas BGCanvas = FindName("BGCanvas") as Canvas;
-                        Canvas MainCanvas = BGCanvas.FindName("PaintCanvas") as Canvas;
-
-                        int shiftX = (int)(double)GameArgs[0] / PaintProperties.BlockWidth;
-                        int shiftY = (int)(double)GameArgs[1] / PaintProperties.BlockHeight;
-
-                        for (int BlY = -PaintChunkHeight; BlY <= PaintChunkHeight * 2; BlY++)
-                        {
-                            for (int BlX = -PaintChunkWidth; BlX <= PaintChunkWidth * 2; BlX++)
-                            {
-                                object[] BT = (Map[0] as object[,])[500 + BlX - shiftX, 500 + BlY - shiftY] as object[];
-                                byte[] cl = BT[1] as byte[];
-
-                                //在注册名时不能带有特殊符号，例如-
-                                string NX;
-                                string NY;
-                                if (BlX <= 0) { NX = "_" + -BlX; }
-                                else { NX = Convert.ToString(BlX); }
-                                if (BlY <= 0) { NY = "_" + -BlY; }
-                                else { NY = Convert.ToString(BlY); }
-                                string RectName = /*"Px" + PCX + "Py" + PCY +*/ "x" + NX + "y" + NY;
-                                Rectangle NowPaintBlcok = MainCanvas.FindName(RectName) as Rectangle;
-
-                                NowPaintBlcok.Fill = new SolidColorBrush(Color.FromRgb(cl[0], cl[1], cl[2]));
-                            }
-                        }
-                    }));
-                    MapShift[0] %= PaintProperties.BlockWidth;
-                    MapShift[1] %= PaintProperties.BlockHeight;
-                    FlushXStat = false;
-                    FlushYStat = false;
-                }
-
-                Thread.Sleep(5);
-            }
-        }
-        
-        private void MapFlush()
-        {
-
-        }
-
-        public void KeyExcuter()
-        {
-            double spd = 1.0d;
+            double spd = 1d;
             //每个按键对应特殊的算法
             object[] KeyGrade = new object[] {
                 new object[] {spd , "+"},
@@ -320,10 +292,9 @@ namespace _WPF_RPG
                 new object[] {-1.0 , "*"},
                 new object[] {-1},
             };
-
-            while (true)
+            while (true) 
             {
-
+                //# Event1 KeyCheck
                 for (int Num = 0; Num < KeyPressStat.Length; Num++)
                 {
                     object[] ExcCond = (object[])KeyGrade[Num];
@@ -350,7 +321,6 @@ namespace _WPF_RPG
                         }
                     }
                 }
-                
 
                 MapShift[0] += KeyValue[0] + KeyValue[2];
                 MapShift[1] += KeyValue[1] + KeyValue[3];
@@ -360,8 +330,19 @@ namespace _WPF_RPG
                 KeyValue[1] = 0d;
                 KeyValue[2] = 0d;
                 KeyValue[3] = 0d;
+                //# Event1 End
 
-                Thread.Sleep(5);
+                //# Event2 MapShiftCheck
+                if (MapShift[0] >= PaintChunkWidth * PaintProperties.BlockWidth / 2 || MapShift[0] <= -PaintChunkWidth * PaintProperties.BlockWidth / 2)
+                {
+                    FlushXStat = true;
+                }
+                if (MapShift[1] >= PaintChunkHeight * PaintProperties.BlockHeight / 2 || MapShift[1] <= -PaintChunkHeight * PaintProperties.BlockHeight / 2)
+                {
+                    FlushYStat = true;
+                }
+
+                Thread.Sleep(MainCheckTick);
             }
         }
 
@@ -415,8 +396,8 @@ namespace _WPF_RPG
         public int ScreenHeight = 600;
 
         //绘制属性
-        public const int BlockWidth = 32;
-        public const int BlockHeight = 32;
+        public const int BlockWidth = 64;
+        public const int BlockHeight = 64;
 
         //视角属性
         double NowCameraPosX = 0;
